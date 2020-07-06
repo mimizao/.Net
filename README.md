@@ -2231,20 +2231,138 @@ namespace _06_Path类 {
 
 
 
-## File
+## File和FileStream
+
+### File
 
 操作文件的，命名空间同样在IO下，这里视频少了，自己找教程学下
 
+* File类，是一个静态类，支持对文件的基本操作，包括创建，拷贝，移动，删除和打开一个文件。File类方法的参量很多时候都是路径path。主要提供有关文件的各种操作，在使用时需要引用System.IO命名空间。
+* FileStream文件流 只能处理原始字节(raw byte)。FileStream 类可以用于任何数据文件，而不仅仅是文本文件。FileStream 对象可以用于读取诸如图像和声音的文件，FileStream读取出来的是字节数组，然后通过编码转换将字节数组转换成字符串。
+* 区别：File是一个文件的类，对文件进行操作的；FileStream：文件流，对txt、xml等文件写入内容的时候需要使用的一个工具。打个形象的比喻：File可以理解成用直接把一缸水倒入另外一缸，FileStream是用水舀一点点舀过去。
+
+File类的一些常用操作
+
 ```c#
-namespace _07_File类 {
+namespace _07_File和FileStream {
     class Program {
         static void Main(string[] args) {
-            //创建
-            File.Create(@"C:\Users\Gerton\Desktop\new.txt");
-            //删除
-            File.Delete(@"C:\Users\Gerton\Desktop\new.txt");
-            //复制
-            File.Copy(@"C:\Users\Gerton\Desktop\new.txt", @"C:\Users\Gerton\Desktop\new1.txt");
+            #region File类创建txt文件
+            //方法1
+            string path1 = @"C:\Users\Gerton\Desktop\1.txt";
+            File.Create(path1);
+            //方法2
+            string path2 = @"C:\Users\Gerton\Desktop\2.txt";
+            File.Open(path2, FileMode.OpenOrCreate);
+            #endregion
+
+            #region File类txt拼接内容
+            List<string> users = new List<string>();
+            users.Add("张三");
+            users.Add("李四");
+            users.Add("王五");
+            users.Add("赵六");
+            string path3 = @"C:\Users\Gerton\Desktop\3.txt";
+            File.AppendAllLines(path3, users, Encoding.Default);
+            #endregion
+
+            #region File类字节形式读取txt文档
+            byte[] buttf = File.ReadAllBytes(path3);
+            string str = Encoding.Default.GetString(buttf, 0, buttf.Length);
+            Console.WriteLine(str);
+            #endregion
+        }
+    }
+}
+```
+
+File类常用方法：
+
+|      代码       |        意义        |
+| :-------------: | :----------------: |
+|     Open()      |      打开文件      |
+|    Create()     |      创建文件      |
+|     Copy()      |      复制文件      |
+|    Delete()     |      删除文件      |
+|    Exists()     |  判断文件是否存在  |
+|     Move()      |      移动文件      |
+|   Replace ()    |      替换文件      |
+| AppendAllText() | 新建文件并添加文本 |
+|  ReadAllText()  | 打开并读取文本内容 |
+
+### FileStream
+
+需要注意的地方：首先需要创建FileStream对象，创建的时候格式需要注意new FileStream(路径，打开方式，读写参数)，并且要将创建对象的过程写在using中，因为GC不能自动释放文件流，而如果写在using中，会自动释放流所占用的资源。
+
+```c#
+namespace _07_File和FileStream {
+    class Program {
+        static void Main(string[] args) {
+            #region 以文件流形式读取
+            string path4 = @"C:\Users\Gerton\Desktop\4.txt";
+            byte[] buffer = new byte[1025 * 1024 * 5];
+            //为什么要写using，因为GC不能自动释放文件流，如果写在using中，会自动地释放流所占用的资源。
+            using (FileStream fsRead = new FileStream(path4, FileMode.OpenOrCreate, FileAccess.Read)) {
+                //while是因为每次只能读取5M，所以需要写一个循环
+                while (true) {
+                    //设置这个对象每次读取5M，r表示返回的每次实际读取到的有效字节数
+                    int r = fsRead.Read(buffer, 0, buffer.Length);
+                    if (r == 0) {
+                        break;
+                    }
+                    //读取到的是字节数组，将字节数组中每一个元素按照指定的编码格式解码成字符串，后面0,r表示解码的范围，防止有太多的不必要内容解码出来。
+                    string str = Encoding.Default.GetString(buffer, 0, r);
+                    Console.WriteLine(str);
+                    ////如果不写using的话，需要下面两步
+                    ////关闭流
+                    //fsRead.Close();
+                    ////释放流所占用的资源
+                    //fsRead.Dispose();
+                }
+            }
+            #endregion
+
+            #region 以文件流形式写入，这种方式并不会覆盖全部内容，直接覆盖写入的那些
+            string path5 = @"C:\Users\Gerton\Desktop\4.txt";
+            using (FileStream fsWrite = new FileStream(path5, FileMode.OpenOrCreate, FileAccess.Write)) {
+                string str1 = "早知道像这样，如梦一场";
+                byte[] buffer1 = Encoding.Default.GetBytes(str1);
+                fsWrite.Write(buffer, 0, buffer.Length);
+            }
+            Console.WriteLine("写入OK");
+            Console.ReadKey();
+            #endregion
+        }
+    }
+}
+```
+
+
+
+### 使用FileStream实现文件的复制
+
+```c#
+namespace _07_File和FileStream {
+    class Program {
+        static void Main(string[] args) {
+            string sourcePath = @"C:\Users\Gerton\Desktop\源文件.mp3";
+            string targetPath = @"C:\Users\Gerton\Desktop\目标文件.mp3";
+            myCopy(sourcePath, targetPath);
+            Console.ReadKey();
+        }
+        public static void myCopy(string sourcePath,string targetPath) {
+            using (FileStream fileRead = new FileStream(sourcePath, FileMode.Open, FileAccess.Read)) {
+                using(FileStream fileWrite = new FileStream(targetPath, FileMode.OpenOrCreate, FileAccess.Write)) {
+                    byte[] buffer = new byte[1024 * 1024];
+                    while (true) {
+                        int r = fileRead.Read(buffer, 0, buffer.Length);
+                        if (r == 0) {
+                            break;
+                        }
+                        fileWrite.Write(buffer, 0, r);
+                    }
+                }
+            }
         }
     }
 }
@@ -2965,5 +3083,883 @@ WinForm应用程序是一种智能客户端技术，我们可以使用WinForm应
 
 ## Timer
 
-在指定的时间间隔内做一个指定的事情，实现了跑马灯和闹钟两个功能，如果有不懂的话，去看下代码
+在指定的时间间隔内做一个指定的事情，可以在属性里面设置相应的时间，默认单位是毫秒，实现了跑马灯和闹钟两个功能，这个就是跑马灯的代码，可以看到，在timer1这个里面，将字符串来回换就行了。
 
+```c#
+namespace _05_跑马灯 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void timer1_Tick(object sender, EventArgs e) {
+            label1.Text = label1.Text.Substring(1) + label1.Text.Substring(0, 1);
+        }
+    }
+}
+```
+
+
+
+## 单选和多选
+
+### RadioButton
+
+单选按钮：在默认情况下，一个窗体中，所有的单选按钮只允许选中一个，可以使用容器中的GroupBox来进行分组，那么每个组中都可以选择一个。
+
+### CheckBox
+
+多选按钮：没有什么特别的。
+
+### Checked
+
+无论是单选还是多选，这个都表示当前按钮是否有被选中，返回值为bool类型。
+
+
+
+## MDI窗体设计
+
+可以在一个窗体中添加其他窗体，并且可以设置其他窗体的排列方式。
+
+1. 首先确定一个父窗体，将对应窗体的IsMdiContainer设置为true
+2. 创建子窗体，并且设置他们的父窗体，对应语法：子窗体.MdiParent = 父窗体
+3. 排列方式， LayoutMdi(MdiLayout.对应类型)，可以选择横向、纵向。
+
+
+
+## pictureBox
+
+这个控件是用来放图片的，如果想要展示图片
+
+```c#
+	pictureBox1.Image = Image.FromFile(地址);
+```
+
+
+
+# 第十五天
+
+## Directory
+
+主要功能是操作文件夹，命名空间System.IO，静态类，下面介绍一下常用函数
+
+#### CreateDirectory()：创建
+
+```c#
+	Directory.CreateDirectory(@"D:\2");
+```
+
+#### Delete()：删除
+
+```c#
+	Directory.Delete(@"D:\1");
+```
+
+如果该文件夹是非空的，需要加上一个参数
+
+```c#
+	Directory.Delete(@"D:\1",true);
+```
+
+#### Exists()：判断是否存在
+
+```c#
+	for (int i = 0; i < 100; ++i) {
+		if (Directory.Exists(@"D:\1")) {
+				Directory.CreateDirectory(@"D:\1\"+i);
+		}
+	}
+```
+
+#### GetFiles()：获得全部文件的路径
+
+```c#
+	string[] paths = Directory.GetFiles(@"D:\2");
+	for (int i = 0; i < paths.Length; ++i) {
+		Console.WriteLine(paths[i]);
+	}
+```
+
+这样可以获得该文件夹下全部文件的路径，但是如果想要获得相应格式的，可以加上格式：
+
+```c#
+	string[] paths = Directory.GetFiles(@"D:\2","*.txt");
+	for (int i = 0; i < paths.Length; ++i) {
+		Console.WriteLine(paths[i]);
+	}
+```
+
+#### GetDirectories()：获得全部文件夹的路径
+
+```c#
+	string[] dirPaths = Directory.GetDirectories(@"D:\1");
+	for (int i = 0; i < dirPaths.Length; ++i) {
+		Console.WriteLine(dirPaths[i]);
+    }
+```
+
+
+
+## WebBrowser浏览器控件
+
+这个控件是可以添加一个浏览器的，是通过Url属性控制的，如果想要直接将一个string类型的数据直接赋值给Url是不行的，Url属性想要获得是Uri类型的数据，所以就需要使用Uri类的构造函数：
+
+```c#
+	public Uri(string uriString);
+```
+
+这样就可以了，然后再将该Uri对象赋值给Url属性，下面实现的是一个，在文本框中输入网址，然后点击按钮转到该网址的程序：
+
+```c#
+	private void button1_Click(object sender, EventArgs e) {
+		string str = textBox1.Text;
+		Uri uri = new Uri("https://" + str);
+        webBrowser1.Url = uri;
+	}
+```
+
+## ComboBox下拉框控件
+
+可以实现选日期之类的功能，主要事件是选择了之后发生什么，SelectIndexChanged，下面给一个年日期选择器，里面需要注意的是，如何获得当前选择内容，有三种情况，都用了一下，只有SelectItem可以，之后又复习了一下Split函数，这个返回的是字符串数组。
+
+```c#
+namespace _03_日期选择器 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void Form1_Load(object sender, EventArgs e) {
+            int year = DateTime.Now.Year;
+            for (int i = year; i >= 1949; --i) {
+                cboYears.Items.Add(i + "年");
+            }
+        }
+
+        private void cboYears_SelectedIndexChanged(object sender, EventArgs e) {
+            //这是为了防止每次选择都添加一份，所以先清空
+            cboMonths.Items.Clear();
+            for (int i = 1; i <= 12; ++i) {
+                cboMonths.Items.Add(i + "月");
+            }
+        }
+
+        private void cboMonths_SelectedIndexChanged(object sender, EventArgs e) {
+            //这是为了防止每次选择都添加一份，所以先清空
+            cboDays.Items.Clear();
+            //需要获得当前选择的月份，使用Selected后面后多种选择，分别试了一下，只有第一种可以，但是会带一个月字
+            //MessageBox.Show(cboMonths.SelectedItem.ToString());  //这种可以输出对应月份，但是会带月字
+            //MessageBox.Show(cboMonths.SelectedText());//这种试了一下，什么都不输出
+            //MessageBox.Show(cboMonths.SelectedValue.ToString());//这种直接报错
+            string strYear = (cboYears.SelectedItem.ToString()).Split(new char[] { '年' }, StringSplitOptions.RemoveEmptyEntries)[0];
+            int year = Convert.ToInt32(strYear);
+            string strMonth = (cboMonths.SelectedItem.ToString()).Split(new char[] { '月' }, StringSplitOptions.RemoveEmptyEntries)[0];
+            int month = Convert.ToInt32(strMonth);
+            int day = 0;
+            switch (month) {
+                case 1:
+                case 3:
+                case 5:
+                case 7:
+                case 8:
+                case 10:
+                case 12:
+                    day = 31;
+                    break;
+                case 2:
+                    if ((year % 400 == 0)||(year % 4==0 && year % 100 != 0)) {
+                        day = 29;
+                    }
+                    else {
+                        day = 28;
+                    }
+                    break;
+                default:
+                    day = 30;
+                    break;
+            }
+            for (int i =1; i<= day; ++i) {
+                cboDays.Items.Add(i + "日");
+            }
+        }
+    }
+}
+```
+
+## ListBox控件
+
+这个一般用在点列表中的每一个，就实现什么功能，而且需要这个列表一直显示着，不是那种下拉选一个情况。下面实现一个通过点击图片名，显示不同图片的代码，我实现的单击，采用的事件是：SelectedIndexChanged，教程里面是双击，事件是：MouseDoubleClick，另外试了一下，事件MouseClick和我实现的是一样的。
+
+更改一下，教程里面是通过DoubleClick实现的，我看了一下，一个是双击，一个是鼠标双击，目前没有看出来什么区别。
+
+这里主要研究了两种获取路径的方式。
+
+```c#
+namespace _04_listBox控件 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+        #region 第一种拿到地址的方式，通过List集合
+        List<string> pathsList = new List<string>();
+        private void Form1_Load(object sender, EventArgs e) {
+            string[] paths = Directory.GetFiles(@"C:\Users\Gerton\Desktop\pictures");
+            for (int i = 0; i < paths.Length; ++i) {
+                string fileName = Path.GetFileName(paths[i]);
+                pathsList.Add(paths[i]);  //每次获得一个地址，添加到list中
+                listBox1.Items.Add(fileName);
+            }
+        }
+
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e) {
+            pictureBox1.Image = Image.FromFile(pathsList[listBox1.SelectedIndex]);
+        }
+        #endregion
+
+        #region 第二种拿到地址的方式，直接把这个sting[] paths写在外面就可以了，应该是第二种简单一些
+        //string[] paths = Directory.GetFiles(@"C:\Users\Gerton\Desktop\pictures");
+        //private void Form1_Load(object sender, EventArgs e) {
+        //    for (int i = 0; i < paths.Length; ++i) {
+        //        string fileName = Path.GetFileName(paths[i]);
+        //        listBox1.Items.Add(fileName);
+        //    }
+        //}
+
+        //private void listBox1_SelectedIndexChanged(object sender, EventArgs e) {
+        //    pictureBox1.Image = Image.FromFile(paths[listBox1.SelectedIndex]);
+        //}
+        #endregion
+    }
+}
+```
+
+## 石头剪刀布
+
+这个是一个将类和现在学到控件组合起来的小程序，里面有玩家类，电脑类，裁判类，代码记录一下：
+
+玩家类：
+
+```c#
+namespace _05_石头剪刀布 {
+    class Player {
+        public int GetPlayNumber(string str) {
+            int num = 0;
+            if (str == "石头") {
+                num = 1;
+            }
+            else if (str == "剪刀") {
+                num = 2;
+            }
+            else {
+                num = 3;
+            }
+            return num;
+        }
+    }
+}
+```
+
+电脑类：
+
+```c#
+namespace _05_石头剪刀布 {
+    class Computer {
+
+        public string Action {
+            get;
+            set;
+        }
+
+        public int GetComputerNumber() {
+            int num = 0;
+            Random r = new Random();
+            num = r.Next(1, 4);
+            if (num == 1) {
+                this.Action = "石头";
+            }
+            else if (num == 2) {
+                this.Action = "剪刀";
+            }
+            else {
+                this.Action = "布";
+            }
+            return num;
+        }
+    }
+}
+```
+
+裁判类：
+
+```c#
+namespace _05_石头剪刀布 {
+    class Judge {
+        public enum Result {
+            玩家赢,
+            电脑赢,
+            平手
+        }
+        public static Result GetResult(int PlayNumber, int ComputerNumber) {
+            
+            int resultNum = PlayNumber - ComputerNumber;
+            if (resultNum == -1 || resultNum == 2) {
+                return Result.玩家赢;
+            }
+            else if (resultNum == 0) {
+                return Result.平手;
+            }
+            else {
+                return Result.电脑赢;
+            }
+        }
+    }
+}
+```
+
+控件部分：
+
+```c#
+namespace _05_石头剪刀布 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+            label2.Text = "快出啊，傻逼";
+            label4.Text = "等着那个傻逼呢";
+            label6.Text = "你俩不出我怎么知道谁赢";
+        }
+
+        private void test(string str) {
+            Player player = new Player();
+            int playerNumber = player.GetPlayNumber(str);
+
+            Computer computer = new Computer();
+            int computerNumber = computer.GetComputerNumber();
+            label4.Text = computer.Action.ToString();
+
+            label6.Text = Judge.GetResult(playerNumber, computerNumber).ToString();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            label2.Text = "石头";
+            string str = label2.Text;
+            test(str);
+        }
+
+        private void button2_Click(object sender, EventArgs e) {
+            label2.Text = "剪刀";
+            string str = label2.Text;
+            test(str);
+        }
+
+        private void button3_Click(object sender, EventArgs e) {
+            label2.Text = "布";
+            string str = label2.Text;
+            test(str);
+        }
+    }
+}
+```
+
+
+
+## 文件对话框
+
+### 打开文件对话框
+
+#### OpenFileDialog()
+
+显示一个标准对话况，提示用户打开文件
+
+#### Title
+
+设置对话框标题
+
+#### Multiselect
+
+设置对话框是否可以多选
+
+#### InitialDirectory
+
+设置对话框的初始目录
+
+#### Filter
+
+设置对话框选择文件的文件类型
+
+#### FileName
+
+获得已选文件的路径
+
+#### ShowDialog()
+
+展示对话框
+
+下面给一个代码，这个代码实现了，选择文件后将内容打印在文本框中
+
+```c#
+namespace _06_打开对话框 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            //点击弹出对话框
+            OpenFileDialog ofd = new OpenFileDialog();
+            //设置对话框标题
+            ofd.Title = "蜜蜜牌文件选择器";
+            //设置对话框可以多选
+            ofd.Multiselect = true;
+            //设置对话框的初始目录
+            ofd.InitialDirectory = @"C:\Users\Gerton\Desktop";
+            //设置对话框选择文件的文件类型
+            ofd.Filter = "文本文件|*.txt|媒体文件|*.txt|图片文件|*.jpg|所有文件|*.*";
+            //展示对话框
+            ofd.ShowDialog();
+            //获得选择在对话框中选中文件的路径
+            string path = ofd.FileName;
+            //为了防止点击取消，导致选择文件的路径为空，加一个判断
+            if (path == "") {
+                return;
+            }
+            //将读取文件的内容显示在TextBox中
+            using(FileStream fsRead = new FileStream(path, FileMode.Open, FileAccess.Read)) {
+                byte[] buffer = new byte[1024 * 1024 * 5];
+                int r = fsRead.Read(buffer, 0, buffer.Length);
+                textBox1.Text = Encoding.Default.GetString(buffer, 0, r);
+            }
+        }
+    }
+}
+```
+
+
+
+### 保存文件对话框
+
+实现在文本框中输入，然后保存生成一个txt文件的程序，和上面的差不多，直接给个代码：
+
+```c#
+namespace _07_保存文件对话框 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Title = "选择想要保存的路径";
+            sfd.Filter = "文本文件|*.txt|所有文件|*.*";
+            sfd.InitialDirectory = @"C:\Users\Gerton\Desktop";
+            sfd.ShowDialog();
+            string path = sfd.FileName;
+            if (path == "") {
+                return;
+            }
+            using (FileStream fsWrite = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write)) {
+                byte[] buffer = Encoding.Default.GetBytes(textBox1.Text);
+                fsWrite.Write(buffer, 0, buffer.Length);
+            }
+        }
+    }
+}
+```
+
+
+
+### 字体和颜色对话框
+
+根据选择的字体和颜色更改文本框中的字体和颜色
+
+```c#
+namespace _08_字体和颜色对话框 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            FontDialog fd = new FontDialog();
+            fd.ShowDialog();
+            textBox1.Font = fd.Font;
+        }
+
+        private void button2_Click(object sender, EventArgs e) {
+            ColorDialog cd = new ColorDialog();
+            cd.ShowDialog();
+            textBox1.ForeColor = cd.Color;
+        }
+    }
+}
+```
+
+
+
+### 记事本
+
+算是对以上的一个总结，同时有了一个新的容器控件，panel，可以将多个放在一个里面，这样无论是隐藏还是可见都方便了很多。
+
+```c#
+namespace _09_稍微高级点的记事本 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+        List<string> listPaths = new List<string>();
+
+        private void button1_Click(object sender, EventArgs e) {
+            panel1.Visible = false;
+        }
+
+        private void Form1_Load(object sender, EventArgs e) {
+            panel1.Visible = false;
+            textBox1.WordWrap = false;
+        }
+
+        private void 显示ToolStripMenuItem_Click(object sender, EventArgs e) {
+            panel1.Visible = true;
+        }
+
+        private void 隐藏ToolStripMenuItem_Click(object sender, EventArgs e) {
+            panel1.Visible = false;
+        }
+        /// <summary>
+        /// 打开文件，并显示到文本框中
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void 打开ToolStripMenuItem_Click(object sender, EventArgs e) {
+            OpenFileDialog ofd = new OpenFileDialog();
+            ofd.Title = "请选择要打开的文件";
+            ofd.InitialDirectory = @"C:\Users\Gerton\Desktop";
+            ofd.Filter = "文本类型|*.txt|所有类型|*.*";
+            ofd.ShowDialog();
+            string path = ofd.FileName;
+            if (path == "") {
+                return;
+            }
+            listPaths.Add(path);
+            listBox1.Items.Add(Path.GetFileName(path));
+            using (FileStream fsRead = new FileStream(path, FileMode.Open, FileAccess.Read)) {
+                byte[] buffer = new byte[1024 * 1024 * 5];
+                int r = fsRead.Read(buffer, 0, buffer.Length);
+                textBox1.Text = Encoding.Default.GetString(buffer, 0, r);
+            }
+        }
+
+        /// <summary>
+        /// 将文本框中的内容保存
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void 保存ToolStripMenuItem_Click(object sender, EventArgs e) {
+            SaveFileDialog sfd = new SaveFileDialog();
+            sfd.Title = "请选择想要保存的路径";
+            sfd.InitialDirectory = @"C:\Users\Gerton\Desktop";
+            sfd.Filter = "文本类型|*.txt|所有类型|*.*";
+            sfd.ShowDialog();
+            string path = sfd.FileName;
+            if (path == "") {
+                return;
+            }
+            using (FileStream fsWrite = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write)) {
+                byte[] buffer = Encoding.Default.GetBytes(textBox1.Text);
+                fsWrite.Write(buffer, 0, buffer.Length);
+            }
+            MessageBox.Show("保存成功");
+            return;
+        }
+
+        private void 自动换行ToolStripMenuItem_Click(object sender, EventArgs e) {
+            if (mimi.Text == "自动换行") {
+                textBox1.WordWrap = true;
+                mimi.Text = "取消自动换行";
+            }
+            else if (mimi.Text == "取消自动换行") {
+                textBox1.WordWrap = false;
+                mimi.Text = "自动换行";
+            }
+        }
+
+        private void 字体ToolStripMenuItem_Click(object sender, EventArgs e) {
+            FontDialog fdl = new FontDialog();
+            fdl.ShowDialog();
+            textBox1.Font = fdl.Font;
+        }
+
+        private void 颜色ToolStripMenuItem_Click(object sender, EventArgs e) {
+            ColorDialog cdl = new ColorDialog();
+            cdl.ShowDialog();
+            textBox1.ForeColor = cdl.Color;
+        }
+
+        /// <summary>
+        /// 在listBox控件中存储了已经打开过的文件，现在要实现的点哪个显示哪个。
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e) {
+            string path = listPaths[listBox1.SelectedIndex];
+            using (FileStream fsRead = new FileStream(path, FileMode.Open, FileAccess.Read)) {
+                byte[] buffer = new byte[1024 * 1024 * 5];
+                int r = fsRead.Read(buffer, 0, buffer.Length);
+                textBox1.Text = Encoding.Default.GetString(buffer, 0, r);
+            }
+        }
+    }
+}
+```
+
+
+
+## 进程
+
+Process类，我们可以把计算机中每一个运行的应用程序都当作是一个进程，而一个进程又是由多个线程组成的。
+
+下面给出一些常用的代码。
+
+```c#
+namespace _10_进程 {
+    class Program {
+        static void Main(string[] args) {
+            //获得当前的所有进程
+            Process[] pros = Process.GetProcesses();
+            foreach (var item in pros) {
+                //item.Kill(); //杀死进程，这个还是不要试了
+                Console.WriteLine(item);
+            }
+
+            //通过打开一些应用程序
+            Process.Start("calc");//计算器
+            Process.Start("mspaint");//画图
+            Process.Start("iexplore", "http://www.baidu.com"); //浏览器
+
+            //通过进程打开电脑中指定的文件
+            ProcessStartInfo psi = new ProcessStartInfo(@"C:\Users\Gerton\Desktop\1.txt");
+            //需要创建一个进程对象
+            Process p = new Process();
+            //需要获得进程对象的StartInfo属性，属性类型为：ProcessStartInfo，所以需要在上面创建一个该类型的对象，并将想要打开的文件的路径作为参数传入
+            p.StartInfo = psi;
+            //现在已经获得了对应的属性，现在需要打开
+            p.Start();
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+ 
+
+## 线程
+
+首先说下为什么要用多线程：
+
+* 让计算机“同时”做多件事情，节约时间
+* 多线程可以让一个程序“同时”处理多个事情；
+* 后台运行程序，提高程序的运行效率，也不会使主界面出现无响应的情况；
+* 获得当前线程和当前进程。
+
+下面看一下这个代码：
+
+```c#
+namespace _11_线程 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            Test();
+        }
+
+        private void Test() {
+            for (int i = 0; i < 100000; ++i) {
+                Console.WriteLine(i);
+            }
+        }
+    }
+}
+```
+
+因为只有一个线程的原因，所以导致在执行Test()函数时候，这个窗口就拖动不了了。所以需要创建一个线程，来执行Test()函数，代码如下：
+
+```c#
+namespace _11_线程 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            //创建一个线程就执行这个函数
+            Thread th = new Thread(Test);
+            //标记这个线程准备就绪了，可以随时被执行，具体什么时候执行由CPU决定
+            th.Start();
+        }
+
+        private void Test() {
+            for (int i = 0; i < 100000; ++i) {
+                Console.WriteLine(i);
+            }
+        }
+    }
+}
+```
+
+现在又碰到了一个问题，在关闭了窗口之后依然在输出，这就是因为前台线程和后台线程的关系：
+
+* 前台线程：只有所有的前台线程都关闭了才能完成程序关闭。
+* 后台线程：只要所有的前台线程结束，后台线程自动结束。
+
+默认情况下，新创建的线程都是前台线程，所以需要将其设置为后台线程，语法如下：
+
+```c#
+namespace _11_线程 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            //创建一个线程就执行这个函数
+            Thread th = new Thread(Test);
+            //将th线程设置为后台线程
+            th.IsBackground = true;
+            //标记这个线程准备就绪了，可以随时被执行，具体什么时候执行由CPU决定
+            th.Start();
+        }
+
+        private void Test() {
+            for (int i = 0; i < 100000; ++i) {
+                Console.WriteLine(i);
+            }
+        }
+    }
+}
+```
+
+这里对产生一个多线程的步骤进行总结：
+
+* 编写产生线程所要执行的方法
+* 引用System.Threading命名空间
+* 实例化Thread类，并传入一个指向线程所要运行方法的委托。(这时候这个线程已经，但是还没有运行)
+* 调用Thread实例的Start方法，标记该线程可以被CPU执行了，但是具体执行时间由CPU决定。
+
+在.Net下，是不允许跨线程的访问，如下情况：
+
+```c#
+namespace _11_线程 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            //创建一个线程就执行这个函数
+            Thread th = new Thread(Test);
+            //将th线程设置为后台线程
+            th.IsBackground = true;
+            //标记这个线程准备就绪了，可以随时被执行，具体什么时候执行由CPU决定
+            th.Start();
+        }
+
+        private void Test() {
+            for (int i = 0; i < 100000; ++i) {
+                textBox1.Text = i.ToString();
+            }
+        }
+    }
+}
+```
+
+所以取消跨线程的访问异常的捕获，其中Control是所有控件的父类。
+
+```c#
+namespace _11_线程 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+
+        private void button1_Click(object sender, EventArgs e) {
+            //创建一个线程就执行这个函数
+            Thread th = new Thread(Test);
+            //将th线程设置为后台线程
+            th.IsBackground = true;
+            //标记这个线程准备就绪了，可以随时被执行，具体什么时候执行由CPU决定
+            th.Start();
+        }
+
+        private void Test() {
+            for (int i = 0; i < 100000; ++i) {
+                textBox1.Text = i.ToString();
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e) {
+            //取消跨线程的访问异常的捕获
+            Control.CheckForIllegalCrossThreadCalls = false;
+        }
+    }
+}
+```
+
+可是，这样点击关闭的时候又会莫名其妙的抛异常，原因就是在主线程已经结束的时候，新线程会莫名其妙的没有结束，所以需要在关闭窗体的时候判断新线程是否以及结束，如果没有结束，手动结束。
+
+```c
+namespace _11_线程 {
+    public partial class Form1 : Form {
+        public Form1() {
+            InitializeComponent();
+        }
+        Thread th;
+        private void button1_Click(object sender, EventArgs e) {
+            //创建一个线程就执行这个函数
+            th = new Thread(Test);
+            //将th线程设置为后台线程
+            th.IsBackground = true;
+            //标记这个线程准备就绪了，可以随时被执行，具体什么时候执行由CPU决定
+            th.Start();
+        }
+
+        private void Test() {
+            for (int i = 0; i < 100000; ++i) {
+                textBox1.Text = i.ToString();
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e) {
+            //取消跨线程的访问异常的捕获
+            Control.CheckForIllegalCrossThreadCalls = false;
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e) {
+            //当你关闭窗体的时候，判断新线程是否为null
+            if (th != null) {
+                //如果不为null，手动终止线程
+                th.Abort();
+            }
+        }
+    }
+}
+```
+
+这里采用的函数是Abort()，需要注意的是，当线程终止之后，无法再次Start()了。
+
+再来一个小测试，关于Sleep()函数，就是让线程等一会再运行。看了一下，这个Sleep()是一个静态函数，所以只能通过类名去调用。下面就是一个实现，参数的单位是毫秒。
+
+```c#
+namespace _12_线程 {
+    class Program {
+        static void Main(string[] args) {
+            Thread.Sleep(3000);
+            Console.WriteLine("Hello World!");
+            Console.ReadKey();
+        }
+    }
+}
+```
+
+我想起来一个问题，既然Sleep()只能通过类名去调用，那么我怎么知道自己想要让哪一个线程去实现这个功能。
+
+测试了一下，在C++和JAVA中都可以通过对象调用静态方法，但是在C#中无法实现。
